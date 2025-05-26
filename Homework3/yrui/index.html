@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music & Mental Health Interactive Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .dashboard-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .dashboard-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .dashboard-subtitle {
+            font-size: 1.1rem;
+            color: #7f8c8d;
+            margin: 10px 0;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 25px;
+            height: 700px;
+        }
+        
+        .visualization-panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .visualization-panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+        
+        .overview-panel {
+            grid-row: 1 / -1;
+        }
+        
+        .panel-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0 0 15px 0;
+            text-align: center;
+        }
+        
+        .panel-subtitle {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .axis {
+            font-size: 12px;
+        }
+        
+        .axis text {
+            fill: #555;
+        }
+        
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #ddd;
+            shape-rendering: crispEdges;
+        }
+        
+        .grid line {
+            stroke: #e6e6e6;
+            stroke-dasharray: 2,2;
+        }
+        
+        .grid path {
+            stroke-width: 0;
+        }
+        
+        .data-point {
+            stroke: #fff;
+            stroke-width: 1.5;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .data-point:hover {
+            stroke-width: 3;
+            r: 6;
+        }
+        
+        .data-point.selected {
+            stroke: #ff6b6b;
+            stroke-width: 3;
+            r: 8;
+        }
+        
+        .brush .extent {
+            stroke: #667eea;
+            fill-opacity: 0.125;
+            shape-rendering: crispEdges;
+        }
+        
+        .genre-bar {
+            fill: #3498db;
+            transition: all 0.3s ease;
+        }
+        
+        .genre-bar:hover {
+            fill: #2980b9;
+        }
+        
+        .mental-health-bar {
+            transition: all 0.3s ease;
+        }
+        
+        .tooltip {
+            position: absolute;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            border-radius: 8px;
+            pointer-events: none;
+            font-size: 12px;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .control-button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .control-button:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+        
+        .control-button.active {
+            background: #ff6b6b;
+        }
+        
+        .legend {
+            font-size: 11px;
+        }
+        
+        .selection-info {
+            background: #e8f4fd;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            color: #2c3e50;
+            text-align: center;
+        }
+        
+        .pc-axis path,
+        .pc-axis line {
+            stroke: #34495e;
+            stroke-width: 2;
+        }
+        
+        .pc-axis text {
+            fill: #2c3e50;
+            font-size: 10px;
+        }
+        
+        .axis-title {
+            font-weight: bold !important;
+            font-size: 12px !important;
+        }
+        
+        .foreground-line {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .background-line {
+            pointer-events: none;
+        }
+        
+        .pc-legend {
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">Music & Mental Health Explorer</h1>
+            <p class="dashboard-subtitle">Interactive Analysis of Music Listening Habits and Mental Health Patterns</p>
+        </div>
+        
+        <div class="dashboard-grid">
+            <!-- Overview Panel -->
+            <div class="visualization-panel overview-panel">
+                <h2 class="panel-title">Overview: Music Hours vs Mental Health</h2>
+                <p class="panel-subtitle">Click points to select individuals • Drag to brush-select groups • Scroll to zoom</p>
+                <div class="controls">
+                    <button class="control-button active" onclick="updateMentalHealthMetric('anxiety')">Anxiety</button>
+                    <button class="control-button" onclick="updateMentalHealthMetric('depression')">Depression</button>
+                    <button class="control-button" onclick="updateMentalHealthMetric('insomnia')">Insomnia</button>
+                    <button class="control-button" onclick="updateMentalHealthMetric('ocd')">OCD</button>
+                    <button class="control-button" onclick="clearSelection()">Clear Selection</button>
+                </div>
+                <div id="selection-info" class="selection-info" style="display: none;"></div>
+                <svg id="overview-chart"></svg>
+            </div>
+            
+            <!-- Parallel Coordinates Panel -->
+            <div class="visualization-panel">
+                <h2 class="panel-title">Parallel Coordinates</h2>
+                <p class="panel-subtitle">Age, Music Hours & Mental Health patterns</p>
+                <div class="controls">
+                    <button class="control-button" onclick="animateParallelCoordinates()" id="animate-btn">Animate Lines</button>
+                </div>
+                <svg id="genre-chart"></svg>
+            </div>
+            
+            <!-- Mental Health Breakdown Panel -->
+            <div class="visualization-panel">
+                <h2 class="panel-title">Mental Health Profile</h2>
+                <p class="panel-subtitle">Average scores for selected group</p>
+                <svg id="mental-health-chart"></svg>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Include the main JavaScript file -->
+    <script src="main.js"></script>
+</body>
+</html>
